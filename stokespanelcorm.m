@@ -1,19 +1,18 @@
 function Acorr = stokespanelcorm(px, rx, a, b, lptype, side)
 % STOKESPANELCOR - Panel Correction Scheme for Stokes Equation
 %
-% I = stokespanelcor(p, rx, xlo, xhi, ta, lptype, side) gives special
-% quadrature value for panel correction.
+% I = stokespanelcor(p, rx, a, b, lptype, side) gives special
+% quadrature value matrix for panel correction.
 % Inputs: px = target node, with or without struct both will work.
 %         rx = source node, with or without struct both will work.
 %         a = panel start, b = panel end, in complex plane.
-%         ta = density function on rx.
 %         lptype = SLP, 's', or DLP, 'd'.
 %         side = interior, 'i', or exterior, 'e'.
-% Output: I is special quadrature value at target node px.
+% Output: Acorr is special quadrature value at target node px.
 % Efficient only if multiple targs, since O(p^3).
 % See Helsing-Ojala 2008 (special quadr Sec 5.1-2), Helsing 2009 mixed (p=16),
 % and Helsing's tutorial demo11b.m LGIcompRecFAS()
-% Hai 08/24/16
+% Hai 08/28/16
 
 be = 2;     % factor by which to incr panel nodes for close eval
 p = []; if isstruct(px), p.x = px.x; else p.x = px; end     % form target nodes struct
@@ -23,7 +22,7 @@ if ~isfield(r,'nx'), r = quadr_panf(r, 1); end
 rf = quadr_panf(r, be); % struct with geometry info at fine nodes for close eval
 num = numel(r.x);
 Imn = interpmat(num, num*be);     % interpolation matrix
-ta1M = [eye(num),zeros(num)];   ta2M = [zeros(num),eye(num)];
+ta1M = [eye(num),zeros(num)];   ta2M = [zeros(num),eye(num)];   % matrix maps ta to ta1 and ta2
 
 if lptype=='s'
     [A, A1, A2] = Sspecialquad(p,rf,a,b,side); % close-eval
@@ -34,32 +33,15 @@ if lptype=='s'
     % rewrite Stokes single layer potential as sum of Laplace potentials
 else
     [A, A1, A2] = Dspecialquad(p,rf,a,b,side);  % close-eval
-    ta11M = diag(real(r.nx)./r.nx)*( ta1M + 1i*ta2M);
+    ta11M = diag(real(r.nx)./r.nx)*( ta1M + 1i*ta2M);   % matrix maps ta to sigma (complex density function)
     ta12M = diag(imag(r.nx)./r.nx)*( ta1M + 1i*ta2M);
     Acorr = real(A*Imn*ta11M)+1i*real(A*Imn*ta12M) ...
         + (A1+1i*A2)*Imn*( diag(real(r.x))*ta1M + diag(imag(r.x))*ta2M)...
         - diag(real(p.x))*( (A1+1i*A2)*Imn*ta1M)...
         - diag(imag(p.x))*( (A1+1i*A2)*Imn*ta2M);
-    
     % rewrite Stokes single layer potential as sum of Laplace potentials
-%     ta1 = ta(1:end/2) + 1i*ta(end/2+1:end);
-%     ta11 = Imn *(ta1./r.nx.*real(r.nx)); % complex tau for non-laplace term
-%     ta12 = Imn *(ta1./r.nx.*imag(r.nx)); % complex tau for non-laplace term
-%     ta2 = Imn *(real((ta(1:end/2) - 1i*ta(end/2+1:end)).*r.x));
-%     ta3 = Imn *ta(1:end/2);
-%     ta4 = Imn *ta(end/2+1:end);       
-    % interp tau1...4 onto fine panel nodes
-end
 
-% if lptype=='s'
-%     [A, A1, A2] = Sspecialquad(p,rf,a,b,side); % close-eval
-%     I = A*(ta11+1i*ta12) + (A1+1i*A2)*ta2 - real(p.x).*((A1+1i*A2)*ta11) - imag(p.x).*((A1+1i*A2)*ta12);
-%     % Helsing value
-% else
-%     [A, A1, A2] = Dspecialquad(p,rf,a,b,side);
-%     I = (real(A*ta11)+1i*real(A*ta12)) + (A1+1i*A2)*ta2 - real(p.x).*((A1+1i*A2)*ta3) - imag(p.x).*((A1+1i*A2)*ta4);
-%     % Helsing value
-% end
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% end main %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
