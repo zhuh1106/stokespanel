@@ -45,7 +45,10 @@ for k=1:np     % outer loop over panels
     
     if numel(p.x)*numel(r.x)~=0
         % cancel native evaluation from panel k
-        ta = tau([j,j+N]);                    % panel src nodes, density        
+        ta = tau([j,j+N]);                    % panel src nodes, density  
+        if imag(ta(1)) ~= 0
+            ta
+        end
         if lptype=='s' 
             A =  SLPmatrix(p,r); 
         else
@@ -60,7 +63,10 @@ for k=1:np     % outer loop over panels
         % add Helsing value (evaluated at fine nodes)
         I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype, side);
         
-        u(ik) = u(ik) + I;     
+        Acorr = stokespanelcorm( p.x, r.x, s.xlo(k), s.xhi(k), lptype, side);
+        I1 = Acorr*ta;
+        max(I1-I)
+        u(ik) = u(ik) + I1;     
         
     end
 end
