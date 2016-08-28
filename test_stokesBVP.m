@@ -1,7 +1,7 @@
 function test_stokesBVP
 % test Stokes BVP
 v = 1;
-side = 'e'; % test interior or exterior
+side = 'i'; % test interior or exterior
 lptype = 'd'; % test SLP or DLP
 N = 600;
 
