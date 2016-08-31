@@ -1,4 +1,4 @@
-function I = stokespanelcor(px, rx, a, b, ta, lptype, side)
+function I = stokespanelcor(px, rx, a, b, ta, lptype, side, qntype)
 % STOKESPANELCOR - Panel Correction Scheme for Stokes Equation
 %
 % I = stokespanelcor(p, rx, xlo, xhi, ta, lptype, side) gives special
@@ -19,9 +19,9 @@ be = 2;     % factor by which to incr panel nodes for close eval
 p = []; if isstruct(px), p.x = px.x; else p.x = px; end     % form target nodes struct
 r = []; if isstruct(rx), r.x = rx.x; else r.x = rx; end     % form source nodes struct
 % get struct for r with geometry info
-if ~isfield(r,'nx'), r = quadr_panf(r, 1); end   
-rf = quadr_panf(r, be); % struct with geometry info at fine nodes for close eval
-Imn = interpmat(numel(r.x), numel(rf.x));     % interpolation matrix
+if ~isfield(r,'nx'), r = quadr_panf(r, 1, qntype); end   
+rf = quadr_panf(r, be, qntype); % struct with geometry info at fine nodes for close eval
+Imn = interpmat(numel(r.x), numel(rf.x), qntype);     % interpolation matrix
 if lptype=='s'
     ta11 = Imn * ta(1:end/2)/2;
     ta12 = Imn * ta(end/2+1:end)/2;
@@ -176,7 +176,7 @@ if nargout>1
     %end
 end
 
-function sf = quadr_panf(s, be)  
+function sf = quadr_panf(s, be, qntype)  
 % set up quadrature on a closed segment
 % QUADR_panf - set up quadrature (either coarse or fine nodes) on a segment struct
 %
@@ -192,9 +192,9 @@ if ~isfield(s,'p')
 end
 p = s.p; % default panel order
 sf=[]; sf.p=be*s.p; pf=sf.p;
-Imn = interpmat(p, pf);
+Imn = interpmat(p, pf, qntype);
 sf.x = Imn*s.x;
-[~, w, D] = gauss(pf);  % get Legendre spectral differentiation matrix and weights
+if qntype=='G', [~, w, D] = gauss(pf); else [~, w, D] = cheby(pf); end 
 
 sf.xp = D*sf.x; % velocities Z'(sf.x)
 sf.xpp = D*sf.xp;   % acceleration Z''(sf.x)
@@ -205,14 +205,15 @@ sf.ws = sf.w.*sf.sp; % speed weights
 sf.wxp = sf.w.*sf.xp; % complex speed weights (Helsing's wzp)
 
 
-function P = interpmat(n,m) % interpolation matrix from n-pt to m-pt Gauss nodes
+function P = interpmat(n,m, qntype) % interpolation matrix from n-pt to m-pt Gauss nodes
 % INTERPMAT - create interpolation matrix from n-pt to m-pt Gauss nodes
 %
 % P = interpmat(n,m) returns a m*n matrix which maps func values on n-pt Gauss-
 % Legendre nodes on [-1,1] to values on m-pt nodes.
 % Does it the Helsing way via backwards-stable ill-cond Vandermonde solve.
 if m==n, P = eye(n); return, end
-x = gauss(n); y = gauss(m);
+if qntype=='G', x = gauss(n); y = gauss(m); 
+else x = cheby(n); y = cheby(m); end 
 V = ones(n); for j=2:n, V(:,j) = V(:,j-1).*x; end % Vandermonde, original nodes
 R = ones(m,n); for j=2:n, R(:,j) = R(:,j-1).*y; end % monomial eval matrix @ y
 P = (V'\R')';                                       % backwards-stable solve

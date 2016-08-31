@@ -1,7 +1,7 @@
-function Acorr = stokespanelcorm(px, rx, a, b, lptype, side)
+function Acorr = stokespanelcorm(px, rx, a, b, lptype, side, qntype)
 % STOKESPANELCOR - Panel Correction Scheme for Stokes Equation
 %
-% I = stokespanelcor(p, rx, a, b, lptype, side) gives special
+% Acorr = stokespanelcor(px, rx, a, b, lptype, side) gives special
 % quadrature value matrix for panel correction.
 % Inputs: px = target node, with or without struct both will work.
 %         rx = source node, with or without struct both will work.
@@ -18,10 +18,10 @@ be = 2;     % factor by which to incr panel nodes for close eval
 p = []; if isstruct(px), p.x = px.x; else p.x = px; end     % form target nodes struct
 r = []; if isstruct(rx), r.x = rx.x; else r.x = rx; end     % form source nodes struct
 % get struct for r with geometry info
-if ~isfield(r,'nx'), r = quadr_panf(r, 1); end   
-rf = quadr_panf(r, be); % struct with geometry info at fine nodes for close eval
+if ~isfield(r,'nx'), r = quadr_panf(r, 1, qntype); end   
+rf = quadr_panf(r, be, qntype); % struct with geometry info at fine nodes for close eval
 num = numel(r.x);
-Imn = interpmat(num, num*be);     % interpolation matrix
+Imn = interpmat(num, num*be, qntype);     % interpolation matrix
 ta1M = [eye(num),zeros(num)];   ta2M = [zeros(num),eye(num)];   % matrix maps ta to ta1 and ta2
 
 if lptype=='s'
@@ -172,7 +172,7 @@ if nargout>1
     %end
 end
 
-function sf = quadr_panf(s, be)  
+function sf = quadr_panf(s, be, qntype)  
 % set up quadrature on a closed segment
 % QUADR_panf - set up quadrature (either coarse or fine nodes) on a segment struct
 %
@@ -188,9 +188,9 @@ if ~isfield(s,'p')
 end
 p = s.p; % default panel order
 sf=[]; sf.p=be*s.p; pf=sf.p;
-Imn = interpmat(p, pf);
+Imn = interpmat(p, pf, qntype);
 sf.x = Imn*s.x;
-[~, w, D] = gauss(pf);  % get Legendre spectral differentiation matrix and weights
+if qntype=='G', [~, w, D] = gauss(pf); else [~, w, D] = cheby(pf); end 
 
 sf.xp = D*sf.x; % velocities Z'(sf.x)
 sf.xpp = D*sf.xp;   % acceleration Z''(sf.x)
@@ -201,14 +201,15 @@ sf.ws = sf.w.*sf.sp; % speed weights
 sf.wxp = sf.w.*sf.xp; % complex speed weights (Helsing's wzp)
 
 
-function P = interpmat(n,m) % interpolation matrix from n-pt to m-pt Gauss nodes
+function P = interpmat(n,m, qntype) % interpolation matrix from n-pt to m-pt Gauss nodes
 % INTERPMAT - create interpolation matrix from n-pt to m-pt Gauss nodes
 %
 % P = interpmat(n,m) returns a m*n matrix which maps func values on n-pt Gauss-
 % Legendre nodes on [-1,1] to values on m-pt nodes.
 % Does it the Helsing way via backwards-stable ill-cond Vandermonde solve.
 if m==n, P = eye(n); return, end
-x = gauss(n); y = gauss(m);
+if qntype=='G', x = gauss(n); y = gauss(m); 
+else x = cheby(n); y = cheby(m); end 
 V = ones(n); for j=2:n, V(:,j) = V(:,j-1).*x; end % Vandermonde, original nodes
 R = ones(m,n); for j=2:n, R(:,j) = R(:,j-1).*y; end % monomial eval matrix @ y
 P = (V'\R')';                                       % backwards-stable solve

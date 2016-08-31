@@ -2,7 +2,8 @@ function test_stokesBVP
 % test Stokes BVP
 v = 1;
 side = 'i'; % test interior or exterior
-lptype = 'd'; % test SLP or DLP
+lptype = 's'; % test SLP or DLP
+qntype = 'G'; % quadrature nodes, test gauss or chebyshev  
 N = 600;
 
 % set up source and target
@@ -65,7 +66,7 @@ Nn = 10;
 for NN = 1:Nn
     N = 100*NN;
     % 2.1 solve the BVP
-    [s, N, np] = quadr_pan(s,N,'p'); % set up bdry nodes (note outwards normal)
+    [s, N, np] = quadr_pan(s,N,'p',qntype); % set up bdry nodes (note outwards normal)
     N
       
     % 2.1.1 get bdry condition
@@ -100,11 +101,11 @@ for NN = 1:Nn
     
     u = nan*(1+1i)*zz;
     if lptype == 's'
-        u(ii) = stokescloseeval(t, s, tau, N,lptype,side);
+        u(ii) = stokescloseeval(t, s, tau, N,lptype,side,qntype);
         if side == 'i'
             % unique up to a rigid body motion
             z0 = [-.1+0i;(.2+0.1i)*exp(2i*pi/5)];  % two test pts inside
-            u0 = stokescloseeval(struct('x',z0), s, tau, N,lptype,side); % vel @ test pts
+            u0 = stokescloseeval(struct('x',z0), s, tau, N,lptype,side,qntype); % vel @ test pts
             ue0 = stokesletmatrix(struct('x',z0),y_force)*pt_force; % exact soln
             ue0 = ue0(1:end/2) + 1i*ue0(end/2+1:end); % make complx rep @ test pts
             du0 = ue0-u0; uconst = du0(1); urot = imag((du0(2)-du0(1))/(z0(2)-z0(1))); % get 3 params
@@ -112,9 +113,9 @@ for NN = 1:Nn
         end
     elseif lptype == 'd'
         if side == 'e'
-            u(ii) = stokescloseeval(t, s, tau, N,'s',side)+stokescloseeval(t, s, tau, N,'d',side);
+            u(ii) = stokescloseeval(t, s, tau, N,'s',side, qntype)+stokescloseeval(t, s, tau, N,'d',side, qntype);
         elseif side == 'i'
-            u(ii) = stokescloseeval(t, s, tau, N, lptype, side);
+            u(ii) = stokescloseeval(t, s, tau, N, lptype, side, qntype);
         end
     end
     figure(1),clf,imagesc(gx,gy,log10(abs(u-fhom)))

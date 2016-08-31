@@ -1,16 +1,17 @@
-function u = stokescloseeval(t, s, tau, N, lptype, side)
+function u = stokescloseeval(t, s, tau, N, lptype, side, qntype)
 
 if nargin<5, lptype = 'd'; end     % 's' SLP or 'd' DLP test
 if nargin<6, side = 'i'; end     % 'i'=interior or 'e'=exterior
+if nargin<7, qntype = 'C'; end  % 'C'=chebyshev or 'G'=gauss
 qtype = 'p'; s.p = 16;   % 'g'=global, 'p'=panels. s.p= panel order
 
 %% set up panel-wise quadrature
 
 if nargin<4, N = 300; end
-[s, N, np] = quadr(s,N,qtype); % set up bdry nodes (note outwards normal)
+[s, N, np] = quadr(s,N,qtype,qntype); % set up bdry nodes (note outwards normal)
 
 sf = s; be = 2.0;        % factor by which to incr panel nodes for close eval
-sf.p = be*s.p; sf = quadr(sf,be*N,qtype); % the fine nodes for close eval
+sf.p = be*s.p; sf = quadr(sf,be*N,qtype,qntype); % the fine nodes for close eval
 
 
 %% Do native evaluation
@@ -46,9 +47,7 @@ for k=1:np     % outer loop over panels
     if numel(p.x)*numel(r.x)~=0
         % cancel native evaluation from panel k
         ta = tau([j,j+N]);                    % panel src nodes, density  
-        if imag(ta(1)) ~= 0
-            ta
-        end
+
         if lptype=='s' 
             A =  SLPmatrix(p,r); 
         else
@@ -61,11 +60,12 @@ for k=1:np     % outer loop over panels
 %        rf = []; rf.x = sf.x(jf); rf.nx = sf.nx(jf); rf.wxp = sf.wxp(jf); % fine panel
 %        p.x = p.x(1);  % for debug dimension 1 case
         % add Helsing value (evaluated at fine nodes)
-        I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype, side);
+        %I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype,
+        %side);   % density function as input, return correction value
         
-        Acorr = stokespanelcorm( p.x, r.x, s.xlo(k), s.xhi(k), lptype, side);
+        Acorr = stokespanelcorm( p.x, r.x, s.xlo(k), s.xhi(k), lptype, side, qntype);   % no density function, return correction matrix
         I1 = Acorr*ta;
-        max(I1-I)
+
         u(ik) = u(ik) + I1;     
         
     end
@@ -74,7 +74,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% end main %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-function [s, N, np] = quadr(s, N, qtype)  % set up quadrature on a closed segment
+function [s, N, np] = quadr(s, N, qtype, qntype)  % set up quadrature on a closed segment
 % QUADR - set up quadrature (either global or panel-based) on a segment struct
 %
 % [s N] = quadr(s, N, qtype) adds quadrature input to segment struct s.
@@ -92,7 +92,8 @@ if qtype=='g'
     t = (1:N)'/N*2*pi;
     s.tlo = 0; s.thi = 2*pi; s.p = N; s.w = 2*pi/N*ones(N,1); np=1; % 1 big panel
     s.xlo = s.Z(s.tlo); s.xhi = s.Z(s.thi);
-    [~, ~, D] = gauss(N);
+    if qntype=='G', [~, ~, D] = gauss(N); else [~, ~, D] = cheby(N); end
+    
 elseif qtype=='p'
     if ~isfield(s,'p'), s.p=16; end, p = s.p; % default panel order
     np = ceil(N/p); N = p*np;      % np = # panels
@@ -100,7 +101,7 @@ elseif qtype=='p'
     s.thi = (1:np)'/np*2*pi; s.xhi = s.Z(s.thi);  % panel end params, locs
     pt = 2*pi/np;                  % panel size in parameter
     t = zeros(N,1); s.w = t;
-    [x, w, D] = gauss(p);
+    if qntype=='G', [x, w, D] = gauss(p); else [x, w, D] = cheby(p); end   
     D = D*2/pt;
     for i=1:np
         ii = (i-1)*p+(1:p); % indices of this panel

@@ -1,16 +1,17 @@
-function u = stokesselfeval(s, tau, N, lptype, side)
+function u = stokesselfeval(s, tau, N, lptype, side, qntype)
 
 if nargin<4, lptype = 'd'; end     % 's' SLP or 'd' DLP test
 if nargin<5, side = 'i'; end     % 'i'=interior or 'e'=exterior
+if nargin<6, qntype = 'C'; end  % 'C'=chebyshev or 'G'=gauss
 qtype = 'p'; s.p = 16;   % 'g'=global, 'p'=panels. s.p= panel order
 
 %% set up panel-wise quadrature
 
 if nargin<3, N = 300; end
-[s, N, np] = quadr(s,N,qtype); % set up bdry nodes (note outwards normal)
+[s, N, np] = quadr(s,N,qtype,qntype); % set up bdry nodes (note outwards normal)
 
 sf = s; be = 2.0;        % factor by which to incr panel nodes for close eval
-sf.p = be*s.p; sf = quadr(sf,be*N,qtype); % the fine nodes for close eval
+sf.p = be*s.p; sf = quadr(sf,be*N,qtype,qntype); % the fine nodes for close eval
 
 
 %% Do native evaluation
@@ -30,7 +31,7 @@ u = u_temp(1:end/2) + 1i*u_temp(end/2+1:end);
 %% For each panel, replace close-native-eval by close-special-eval
 if qtype == 'p'
 tic, nst = 0; % eval on grid w/ close-eval scheme corrections
-Imn = interpmat(s.p, sf.p); % coarse-to-fine interp matrix, same for all panels
+Imn = interpmat(s.p, sf.p, qntype); % coarse-to-fine interp matrix, same for all panels
 panlen = zeros(1,np); % lengths of panel (keep for later)
 for k=1:np     % outer loop over panels
     j = (k-1)*s.p+(1:s.p);          % indices of nodes for kth panel
@@ -46,7 +47,7 @@ for k=1:np     % outer loop over panels
         u_temp = A*ta;
         u(ik) = u(ik) - (u_temp(1:end/2)+1i*u_temp(end/2+1:end));      % cancel off local direct interaction
 
-        I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype, side);      
+        I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype, side, qntype);      
         u(ik) = u(ik) + I;        % add Helsing value
         
     end
@@ -55,7 +56,7 @@ end
 u = [real(u);imag(u)];
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% end main %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [s, N, np] = quadr(s, N, qtype)  % set up quadrature on a closed segment
+function [s, N, np] = quadr(s, N, qtype, qntype)  % set up quadrature on a closed segment
 % QUADR - set up quadrature (either global or panel-based) on a segment struct
 %
 % [s N] = quadr(s, N, qtype) adds quadrature input to segment struct s.
@@ -73,7 +74,8 @@ if qtype=='g'
     t = (1:N)'/N*2*pi;
     s.tlo = 0; s.thi = 2*pi; s.p = N; s.w = 2*pi/N*ones(N,1); np=1; % 1 big panel
     s.xlo = s.Z(s.tlo); s.xhi = s.Z(s.thi);
-    [~, ~, D] = gauss(N);
+    if qntype=='G', [~, ~, D] = gauss(N); else [~, ~, D] = cheby(N); end
+    
 elseif qtype=='p'
     if ~isfield(s,'p'), s.p=16; end, p = s.p; % default panel order
     np = ceil(N/p); N = p*np;      % np = # panels
@@ -81,7 +83,7 @@ elseif qtype=='p'
     s.thi = (1:np)'/np*2*pi; s.xhi = s.Z(s.thi);  % panel end params, locs
     pt = 2*pi/np;                  % panel size in parameter
     t = zeros(N,1); s.w = t;
-    [x, w, D] = gauss(p);
+    if qntype=='G', [x, w, D] = gauss(p); else [x, w, D] = cheby(p); end   
     D = D*2/pt;
     for i=1:np
         ii = (i-1)*p+(1:p); % indices of this panel
@@ -298,14 +300,15 @@ if size(A,2)~=N
 end
 i = sub2ind(size(A), 1:N, 1:N);
 
-function P = interpmat(n,m) % interpolation matrix from n-pt to m-pt Gauss nodes
+function P = interpmat(n,m, qntype) % interpolation matrix from n-pt to m-pt Gauss nodes
 % INTERPMAT - create interpolation matrix from n-pt to m-pt Gauss nodes
 %
 % P = interpmat(n,m) returns a m*n matrix which maps func values on n-pt Gauss-
 % Legendre nodes on [-1,1] to values on m-pt nodes.
 % Does it the Helsing way via backwards-stable ill-cond Vandermonde solve.
 if m==n, P = eye(n); return, end
-x = gauss(n); y = gauss(m);
+if qntype=='G', x = gauss(n); y = gauss(m); 
+else x = cheby(n); y = cheby(m); end 
 V = ones(n); for j=2:n, V(:,j) = V(:,j-1).*x; end % Vandermonde, original nodes
 R = ones(m,n); for j=2:n, R(:,j) = R(:,j-1).*y; end % monomial eval matrix @ y
 P = (V'\R')';                                       % backwards-stable solve

@@ -1,4 +1,4 @@
-function [s, N, np] = quadr_pan(s, N, qtype)  % set up quadrature on a closed segment
+function [s, N, np] = quadr_pan(s, N, qtype, qntype)  % set up quadrature on a closed segment
 % QUADR - set up quadrature (either global or panel-based) on a segment struct
 %
 % [s N] = quadr(s, N, qtype) adds quadrature input to segment struct s.
@@ -16,7 +16,8 @@ if qtype=='g'
     t = (1:N)'/N*2*pi;
     s.tlo = 0; s.thi = 2*pi; s.p = N; s.w = 2*pi/N*ones(N,1); np=1; % 1 big panel
     s.xlo = s.Z(s.tlo); s.xhi = s.Z(s.thi);
-    [~, ~, D] = gauss(N);
+    if qntype=='G', [~, ~, D] = gauss(N); else [~, ~, D] = cheby(N); end
+    
 elseif qtype=='p'
     if ~isfield(s,'p'), s.p=16; end, p = s.p; % default panel order
     np = ceil(N/p); N = p*np;      % np = # panels
@@ -24,7 +25,7 @@ elseif qtype=='p'
     s.thi = (1:np)'/np*2*pi; s.xhi = s.Z(s.thi);  % panel end params, locs
     pt = 2*pi/np;                  % panel size in parameter
     t = zeros(N,1); s.w = t;
-    [x, w, D] = gauss(p);
+    if qntype=='G', [x, w, D] = gauss(p); else [x, w, D] = cheby(p); end  
     D = D*2/pt;
     for i=1:np
         ii = (i-1)*p+(1:p); % indices of this panel
