@@ -8,10 +8,14 @@ theta = pi*(2*(1:N)'-1)/(2*N);
 x = -cos(theta);
 
 % chebyshev weights
+% Fast construction of the Fejr and Clenshaw-Curtis quadrature rules
 l = floor(N/2)+1;
 K = 0:N-l;   
 v = [2*exp(1i*pi*K/N)./(1-4*K.^2)  zeros(1,l)];
 w = real(ifft(v(1:N) + conj(v(N+1:-1:2))))';
+% j = 1:floor(N/2);
+% w = 2/N*(1 - 2*sum( cos( repmat(j,N,1).*repmat((2*(0:N-1)'+1)*pi/N,1,floor(N/2)))...
+%     .* (1./repmat(4*j.^2-1,N,1)), 2));
 
 % spectral differentiation matrix
 X = repmat(x,1,N);
