@@ -1,8 +1,10 @@
-function u = stokesselfeval(s, tau, N, lptype, side, qntype)
+function [A,Ag] = stokesselfevalm(s, N, lptype, side, qntype)
+% Ag, the global quadrature matrix
+% A, the close evaluation quadrature matrix
 
-if nargin<4, lptype = 'd'; end     % 's' SLP or 'd' DLP test
-if nargin<5, side = 'i'; end     % 'i'=interior or 'e'=exterior
-if nargin<6, qntype = 'C'; end  % 'C'=chebyshev or 'G'=gauss
+if nargin<3, lptype = 'd'; end     % 's' SLP or 'd' DLP test
+if nargin<4, side = 'i'; end     % 'i'=interior or 'e'=exterior
+if nargin<5, qntype = 'C'; end  % 'C'=chebyshev or 'G'=gauss
 qtype = 'p'; s.p = 16;   % 'g'=global, 'p'=panels. s.p= panel order
 
 %% set up panel-wise quadrature
@@ -15,45 +17,55 @@ sf.p = be*s.p; sf = quadr_pan(sf,be*N,qtype,qntype); % the fine nodes for close 
 
 
 %% Do native evaluation
-if nargin<2 || isempty(tau)
-    disp('tau not defined!')
-    % tau = [sin(2*pi - s.t);cos(2*pi - s.t)];
-    tau = [sin(s.t);cos(s.t)]; % default tau for debug
+if lptype=='s'
+    Ag = SLPmatrix(s,s);
+else
+    Ag = DLPmatrix(s,s);
 end
 
-if lptype=='s', Ag = SLPmatrix(s,s);
-else Ag = DLPmatrix(s,s); end
-
-u_temp = Ag * tau; % native u eval grid (could be via FMM)
-u = u_temp(1:end/2) + 1i*u_temp(end/2+1:end);
+A = Ag(1:end/2,:) + 1i*Ag(end/2+1:end,:);
+% u_temp = Ag * tau; % native u eval grid (could be via FMM)
+% u = u_temp(1:end/2) + 1i*u_temp(end/2+1:end);
 
 
 %% For each panel, replace close-native-eval by close-special-eval
 if qtype == 'p'
 tic, nst = 0; % eval on grid w/ close-eval scheme corrections
-Imn = interpmat(s.p, sf.p, qntype); % coarse-to-fine interp matrix, same for all panels
-panlen = zeros(1,np); % lengths of panel (keep for later)
-for k=1:np     % outer loop over panels
-    j = (k-1)*s.p+(1:s.p);          % indices of nodes for kth panel
-    panlen(k) = sum(s.ws(j));       % lengths of panel (keep for later)
-    ik = (abs(s.x - (s.xlo(k)+s.xhi(k))/2) < 0.7*panlen(k) ...
-        | abs(s.x - s.x(j(ceil(s.p/2)))) < 0.9*panlen(k));
-    % approx criterion for near-field of panel
-    p.x = s.x(ik(:)); nst = nst + numel(p.x);  % col vec of targs near kth panel
-    r.x = s.x(j); r.nx = s.nx(j); r.sp = s.sp(j); r.ws = s.ws(j); % r = this panel
-    if numel(p.x)*numel(r.x)~=0
-        ta = tau([j,j+N]);                    % panel src nodes, density
-        if lptype=='s', A =  SLPmatrix(p,r); else A =  DLPmatrix(p,r);end
-        u_temp = A*ta;
-        u(ik) = u(ik) - (u_temp(1:end/2)+1i*u_temp(end/2+1:end));      % cancel off local direct interaction
 
-        I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype, side, qntype);      
-        u(ik) = u(ik) + I;        % add Helsing value
+panlen = zeros(1,np); % lengths of panel (keep for later)
+for l = 1:np
+    i = (l-1)*s.p+(1:s.p);
+    t.x = s.x(i);
+    for k=1:np     % outer loop over panels
+        j = (k-1)*s.p+(1:s.p);          % indices of nodes for kth panel
+        panlen(k) = sum(s.ws(j));       % lengths of panel (keep for later)
+        ik = (abs(t.x - (s.xlo(k)+s.xhi(k))/2) < 0.7*panlen(k) ...
+            | abs(t.x - s.x(j(ceil(s.p/2)))) < 0.9*panlen(k)) ...
+            & abs(t.x - s.x(j(ceil(s.p/2))))<.5;
+    
+        % approx criterion for near-field of panel
+        p.x = t.x(ik(:)); nst = nst + numel(p.x);  % col vec of targs near kth panel
+        r.x = s.x(j); r.nx = s.nx(j); r.sp = s.sp(j); r.ws = s.ws(j); r.wxp = s.wxp(j);% r = this panel
+        if numel(p.x)*numel(r.x)~=0
+%             ta = tau([j,j+N]);                    % panel src nodes, density
+            if lptype=='s'
+                Atemp =  SLPmatrix(p,r); 
+            else
+                Atemp =  DLPmatrix(p,r);
+            end
+%             u_temp = A*ta;
+%             u(ik) = u(ik) - (u_temp(1:end/2)+1i*u_temp(end/2+1:end));      % cancel off local direct interaction
+            Atemp = Atemp(1:end/2,:) + 1i*Atemp(end/2+1:end,:); % for debugging and comparison
+            Acorr = stokespanelcorm( p.x, r.x, s.xlo(k), s.xhi(k), lptype, side, qntype);   % no density function, return correction matrix
+            A(i(ik),[j,end/2+j]) = Acorr; 
         
+        end
     end
 end
 end
-u = [real(u);imag(u)];
+A = [real(A);imag(A)];
+% u = [real(u);imag(u)];
+end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% end main %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [s, N, np] = quadr(s, N, qtype, qntype)  % set up quadrature on a closed segment
@@ -121,7 +133,7 @@ s.sp = abs(s.xp); s.tang = s.xp./s.sp; s.nx = -1i*s.tang;
 s.cur = -real(conj(s.xpp).*s.nx)./s.sp.^2;
 s.ws = s.w.*s.sp; % speed weights
 s.t = t; s.wxp = s.w.*s.xp; % complex speed weights (Helsing's wzp)
-
+end
 function A = DLPmatrix(t,s) % stokes double-layer kernel matrix & targ n-deriv
 % t = target seg (x,nx cols), s = src seg, a = optional translation of src seg
 % No jump included on self-interaction.
@@ -150,7 +162,7 @@ A = dot_part.*cross_part;
 % end           % self? diagonal term for Stokes
 
 A = A.*repmat(s.ws(:)', [2*M 2]);
-
+end
 
 function A = SLPmatrix(t,s) % double-layer kernel matrix & targ n-deriv
 % t = target seg (x,nx cols), s = src seg, a = optional translation of src seg
@@ -169,6 +181,7 @@ d2 = imag(d)./r;
 cross_part = [d1.^2, d1.*d2; d1.*d2, d2.^2];
 
 A = (log_part + cross_part).*repmat(s.ws(:)', [2*M 2])/4/pi;
+end
 
 function [A, A1, A2] = Sspecialquad(t,s,a,b,side)
 % SSPECIALQUAD - SLP val+grad close-eval Helsing "special quadrature" matrix
@@ -228,7 +241,7 @@ if nargout>1
     Az = (V.'\P).'*(1/(2*pi)).*repmat((1i*s.nx)',[N 1]); % solve spec wei
     A1 = real(Az); A2 = -imag(Az);
 end
-
+end
 function [A, A1, A2] = Dspecialquad(t,s,a,b,side)
 % DSPECIALQUAD - DLP val+grad close-eval Helsing "special quadrature" matrix
 %
@@ -286,7 +299,7 @@ if nargout>1
     A1 = real(Az); A2 = -imag(Az);   % note sign for y-deriv from C-deriv
     %end
 end
-
+end
 function i = diagind(A)
 % function i = diagind(A)
 %
@@ -299,7 +312,7 @@ if size(A,2)~=N
   disp('input must be square!');
 end
 i = sub2ind(size(A), 1:N, 1:N);
-
+end
 function P = interpmat(n,m, qntype) % interpolation matrix from n-pt to m-pt Gauss nodes
 % INTERPMAT - create interpolation matrix from n-pt to m-pt Gauss nodes
 %
@@ -312,4 +325,4 @@ else x = cheby(n); y = cheby(m); end
 V = ones(n); for j=2:n, V(:,j) = V(:,j-1).*x; end % Vandermonde, original nodes
 R = ones(m,n); for j=2:n, R(:,j) = R(:,j-1).*y; end % monomial eval matrix @ y
 P = (V'\R')';                                       % backwards-stable solve
-
+end

@@ -1,9 +1,9 @@
 function test_stokesBVP
 % test Stokes BVP
 v = 1;
-side = 'i'; % test interior or exterior
-lptype = 's'; % test SLP or DLP
-qntype = 'G'; % quadrature nodes, test gauss or chebyshev  
+side = 'e'; % test interior or exterior
+lptype = 'd'; % test SLP or DLP
+qntype = 'C'; % quadrature nodes, test gauss or chebyshev  
 N = 600;
 
 % set up source and target
