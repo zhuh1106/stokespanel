@@ -64,6 +64,13 @@ for l = 1:np
 end
 end
 A = [real(A);imag(A)];
+if lptype == 'd'
+    if side =='i'
+        A = eye(size(A))/2 + A;
+    else
+        A = -eye(size(A))/2 + A;
+    end
+end
 % u = [real(u);imag(u)];
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% end main %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
