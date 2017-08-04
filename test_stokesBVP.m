@@ -81,6 +81,7 @@ for NN = 1:Nn
         A = SLPmatrixp(s,s); % normal deriv of SLP
         if side == 'e'
             tau = (-eye(size(A))/2 + A) \ fp;      % operator has rank-1 nullspace
+%             tau = A\f;
         elseif side == 'i'
             tau = (eye(size(A))/2 + A) \ fp;       % operator has rank-3 nullspace
             % but is consistent, could easily fix
@@ -88,13 +89,19 @@ for NN = 1:Nn
     elseif lptype == 'd'
         if side == 'e'
             A = DLPmatrix(s,s);
-            IntOp = @(x) x/2 + A*x + stokesselfeval(s, x, N,'s','e'); % operator has full rank,
-            
-            tau = gmres(IntOp,f,[],1e-14,100);
+            [Ad,~] = stokesselfevalm(s, N, lptype, side, qntype);
+%             IntOp = @(x) x/2 + A*x + stokesselfeval(s, x, N,'s','e'); % operator has full rank,
+%             IntOp = @(x) A*x + stokesselfeval(s, x, N,'s','e'); % operator has full rank,
+%             tau = gmres(IntOp,f,[],1e-14,100);
+            [As,~] = stokesselfevalm(s, N, 's', 'e', qntype);
+            tau = (eye(size(A))/2 + Ad + As)\f;
+%             tau = A\f;
             %temp = tau; figure(4), plot(cumsum(s.ws),[temp(1:end/2),temp(1+end/2:end)]) %debug
         elseif side == 'i'
-            A = DLPmatrix(s,s);    % operator has rank-1 nullspace
+            Ag = DLPmatrix(s,s);    % operator has rank-1 nullspace
+            [A,Agg] = stokesselfevalm(s, N, lptype, side, qntype);
             tau = (-eye(size(A))/2 + A)\f;
+%             tau = A\f;
         end
     end
     
