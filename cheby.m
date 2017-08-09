@@ -8,7 +8,6 @@ theta = pi*(2*(1:N)'-1)/(2*N);
 x = -cos(theta);
 
 % chebyshev weights
-% Fast construction of the Fejr and Clenshaw-Curtis quadrature rules
 l = floor(N/2)+1;
 K = 0:N-l;   
 v = [2*exp(1i*pi*K/N)./(1-4*K.^2)  zeros(1,l)];

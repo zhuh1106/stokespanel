@@ -5,7 +5,7 @@ v = 1;
 side = 'i'; % test interior or exterior
 lptype = 'd'; % test SLP or DLP
 qntype = 'C'; % quadrature nodes, test gauss or chebyshev  
-N = 600;
+N = 100;
 
 % set up source and target
 % source: starfish domain

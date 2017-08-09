@@ -1,21 +1,18 @@
-function test_stokesBVP
+function test_stokesBVP_triangle
 % test Stokes BVP
 v = 1;
-side = 'i'; % test interior or exterior
-lptype = 's'; % test SLP or DLP
-qntype = 'G'; % quadrature nodes, test gauss or chebyshev  
+side = 'e'; % test interior or exterior
+lptype = 'd'; % test SLP or DLP
+qntype = 'C'; % quadrature nodes, test gauss or chebyshev  
 N = 600;
 
-% set up source and target
-% source: starfish domain
-a = .3; w = 5;           % smooth wobbly radial shape params...
-R = @(t) (1 + a*cos(w*t))*1; Rp = @(t) -w*a*sin(w*t); Rpp = @(t) -w*w*a*cos(w*t);
-s.Z = @(t) R(t).*exp(1i*t); s.Zp = @(t) (Rp(t) + 1i*R(t)).*exp(1i*t);
-s.Zpp = @(t) (Rpp(t) + 2i*Rp(t) - R(t)).*exp(1i*t);
-% inside = @(z) abs(z)<R(angle(z));   % Boolean true if z inside domain
-% inside = @(z) abs(z)<1.3;   % Boolean true if z inside domain
-% outside = @(z) abs(z)>R(angle(z));   % Boolean true if z outside domain
-s = quadr(s, N);
+% source
+xx = [2,-1;1/2,0;0,3/2;-1/2,0;-5/2,-3/2;0,-3/4];
+tt = linspace(0,2*pi,19);
+N = 18*16*4;
+r = 0.3;
+[s,N] = polygon2(xx,tt, N, r);
+[s, N, np] = quadr_pan(s,N,'p',qntype);
 
 % target
 nx = 150; gx = ((1:nx)/nx*2-1)*1.5; ny = 150; gy = ((1:ny)/ny*2-1)*1.5; % set up plotting grid
@@ -62,9 +59,10 @@ end
 
 %% 2 convergence test against global quadr
 
-Nn = 10;
+Nn = 8;
 for NN = 1:Nn
     N = 100*NN;
+    N = 18*16*NN;
     % 2.1 solve the BVP
     [s, N, np] = quadr_pan(s,N,'p',qntype); % set up bdry nodes (note outwards normal)
     N
