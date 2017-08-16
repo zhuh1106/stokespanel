@@ -1,9 +1,9 @@
 function test_stokesBVP
 % test Stokes BVP
 v = 1;
-side = 'i'; % test interior or exterior
+side = 'e'; % test interior or exterior
 lptype = 's'; % test SLP or DLP
-qntype = 'G'; % quadrature nodes, test gauss or chebyshev  
+qntype = 'C'; % quadrature nodes, test gauss or chebyshev  
 N = 600;
 
 % set up source and target
@@ -82,11 +82,12 @@ for NN = 1:Nn
         if side == 'e'
 %             tau = (-eye(size(A))/2 + A) \ fp;      % operator has rank-1 nullspace
             [As,~] = stokesselfevalm(s, N, 's', side, qntype);
+            [As,~] = stokesselfevalm2(s,s, N, 's', side, qntype);
             tau = As\f;
-%             tau = A\f;
         elseif side == 'i'
 %             tau = (eye(size(A))/2 + A) \ fp;       % operator has rank-3 nullspace
             [As,~] = stokesselfevalm(s, N, 's', side, qntype);
+            [As,~] = stokesselfevalm2(s,s, N, 's', side, qntype);
             tau = As\f;
             % but is consistent, could easily fix
         end

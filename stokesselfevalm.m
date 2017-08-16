@@ -1,4 +1,16 @@
 function [A,Ag] = stokesselfevalm(s, N, lptype, side, qntype)
+% STOKESSELFEVALM - Stokes Self Evaluation Matrix Computation
+%
+% [A,Ag] = stokesselfevalm(s, N, lptype, side, qntype) gives special
+% quadrature value matrix for self evaluation.
+% Inputs: s = source node( boundary), with or without struct both will work.
+%         N = number of quadrature points
+%         lptype = SLP, 's', or DLP, 'd'.
+%         side = interior, 'i', or exterior, 'e'.
+%         qntype = chebyshev, 'C', or gauss, 'G'
+% Output: A is special quadrature value for Stokes self evaluation.
+%         Ag is native quadrature value for comparison
+% Hai 08/15/17
 % Ag, the global quadrature matrix
 % A, the close evaluation quadrature matrix
 
@@ -24,8 +36,6 @@ else
 end
 
 A = Ag(1:end/2,:) + 1i*Ag(end/2+1:end,:);
-% u_temp = Ag * tau; % native u eval grid (could be via FMM)
-% u = u_temp(1:end/2) + 1i*u_temp(end/2+1:end);
 
 
 %% For each panel, replace close-native-eval by close-special-eval
@@ -71,7 +81,7 @@ if lptype == 'd'
         A = -eye(size(A))/2 + A;
     end
 end
-% u = [real(u);imag(u)];
+
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% end main %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
