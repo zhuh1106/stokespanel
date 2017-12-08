@@ -1,8 +1,20 @@
 function test_stokesBVP
+% TEST_STOKESBVP - Test Stokes Close Evaluation by Solving a BVP
+%
+%        test_stokesBVP returns log scale err plot for solution obtained by
+%        using close evaluation against exact solution
+% Variables : t = target node( subset of nodes of s)
+%             s = source node( boundary), with or without struct both will work.
+%             lptype = SLP, 's', or DLP, 'd'.
+%             side = interior, 'i', or exterior, 'e'.
+%             qntype = chebyshev, 'C', or gauss, 'G'
+% Output:   err plot
+% Hai 08/26/17
+
 % test Stokes BVP
 v = 1;
-side = 'e'; % test interior or exterior
-lptype = 's'; % test SLP or DLP
+side = 'i'; % test interior or exterior
+lptype = 'd'; % test SLP or DLP
 qntype = 'C'; % quadrature nodes, test gauss or chebyshev  
 N = 600;
 
@@ -12,9 +24,6 @@ a = .3; w = 5;           % smooth wobbly radial shape params...
 R = @(t) (1 + a*cos(w*t))*1; Rp = @(t) -w*a*sin(w*t); Rpp = @(t) -w*w*a*cos(w*t);
 s.Z = @(t) R(t).*exp(1i*t); s.Zp = @(t) (Rp(t) + 1i*R(t)).*exp(1i*t);
 s.Zpp = @(t) (Rpp(t) + 2i*Rp(t) - R(t)).*exp(1i*t);
-% inside = @(z) abs(z)<R(angle(z));   % Boolean true if z inside domain
-% inside = @(z) abs(z)<1.3;   % Boolean true if z inside domain
-% outside = @(z) abs(z)>R(angle(z));   % Boolean true if z outside domain
 s = quadr(s, N);
 
 % target
@@ -22,9 +31,9 @@ nx = 150; gx = ((1:nx)/nx*2-1)*1.5; ny = 150; gy = ((1:ny)/ny*2-1)*1.5; % set up
 [xx, yy] = meshgrid(gx,gy); zz = (xx+1i*yy);
 
 
-%% 1 generate the exact solution
+% generate the exact solution
 
-% 1.1 set up locations of point forces
+% set up locations of point forces
 alpha = linspace(-pi/4,pi/4,5);
 y_force = [];                             
 if side == 'e'
@@ -36,7 +45,7 @@ end
 pt_force = [[1;1;0;1;0];[1;0;-1;0;1]];  % magnitude & direction of the point forces (sample 2)
 
 
-% 1.2 use stokeslet to eval exact soln
+% use stokeslet to eval exact soln
 fhom = nan*(1+1i)*zz; % exact soln
 t = [];
 [IN, ON] = inpolygon(real(zz),imag(zz),real(s.x),imag(s.x));
@@ -60,57 +69,39 @@ if v==1
     axis equal tight
 end
 
-%% 2 convergence test against global quadr
+% 2 convergence test
 
 Nn = 10;
 for NN = 1:Nn
     N = 100*NN;
-    % 2.1 solve the BVP
+    % solve the BVP
     [s, N, np] = quadr_pan(s,N,'p',qntype); % set up bdry nodes (note outwards normal)
-    N
-      
-    % 2.1.1 get bdry condition
+    N  
+    % get bdry condition
     f = stokesletmatrix(s,y_force)*pt_force; % Dirichlet bdry condition
-    fp = stokesletpmatrix(s,y_force)*pt_force; % Neumann bdry condition
     
-    %'sup norm of bdry data f, fp:' max(abs(f(:))), max(abs(fp(:)))
-    
-    % 2.1.2 solve for tau
+    %% solve for tau using self close evaluation matrix
     warning('off','MATLAB:nearlySingularMatrix')
     if lptype == 's'
-%         A = SLPmatrixp(s,s); % normal deriv of SLP
         if side == 'e'
-%             tau = (-eye(size(A))/2 + A) \ fp;      % operator has rank-1 nullspace
-            [As,~] = stokesselfevalm(s, N, 's', side, qntype);
-            [As,~] = stokesselfevalm2(s,s, N, 's', side, qntype);
+            [As,~] = stokesselfevalm(s,s, N, 's', side, qntype);
             tau = As\f;
         elseif side == 'i'
-%             tau = (eye(size(A))/2 + A) \ fp;       % operator has rank-3 nullspace
-            [As,~] = stokesselfevalm(s, N, 's', side, qntype);
-            [As,~] = stokesselfevalm2(s,s, N, 's', side, qntype);
+            [As,~] = stokesselfevalm(s,s, N, 's', side, qntype);
             tau = As\f;
-            % but is consistent, could easily fix
         end
     elseif lptype == 'd'
         if side == 'e'
-%             A = DLPmatrix(s,s);
-            [Ad,~] = stokesselfevalm(s, N, lptype, side, qntype);
-%             IntOp = @(x) x/2 + A*x + stokesselfeval(s, x, N,'s','e'); % operator has full rank,
-%             IntOp = @(x) A*x + stokesselfeval(s, x, N,'s','e'); % operator has full rank,
-%             tau = gmres(IntOp,f,[],1e-14,100);
-            [As,~] = stokesselfevalm(s, N, 's', 'e', qntype);
+            [Ad,~] = stokesselfevalm(s,s, N, lptype, side, qntype);
+            [As,~] = stokesselfevalm(s,s, N, 's', 'e', qntype);
             tau = (eye(size(Ad))/2 + Ad + As)\f;
-%             tau = A\f;
-            %temp = tau; figure(4), plot(cumsum(s.ws),[temp(1:end/2),temp(1+end/2:end)]) %debug
         elseif side == 'i'
-%             Ag = DLPmatrix(s,s);    % operator has rank-1 nullspace
-            [A,Agg] = stokesselfevalm(s, N, lptype, side, qntype);
+            [A,~] = stokesselfevalm(s,s, N, lptype, side, qntype);
             tau = (-eye(size(A))/2 + A)\f;
-%             tau = A\f;
         end
     end
     
-    
+    %% evaluate velocity inside computation domain using close evaluation scheme
     u = nan*(1+1i)*zz;
     if lptype == 's'
         u(ii) = stokescloseeval(t, s, tau, N,lptype,side,qntype);

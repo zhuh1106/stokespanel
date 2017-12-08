@@ -31,8 +31,6 @@ for N = 100:50:600
     u = nan*zz;
     u(ii) = stokescloseeval(t, su, tau, N,lptype);
     u(ii) = u(ii) + stokescloseeval(t, sd, tau, N,lptype);
-%     imagesc(gx,gy,abs(u-f))
-%     colorbar
     err(k) = max(abs(u(:)-f(:)));
     k = k+1;
 end

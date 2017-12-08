@@ -1,17 +1,23 @@
-function u = stokescloseeval(t, s, tau, N, lptype, side, qntype)
+function u = stokescloseeval(t, s, tau, N, lptype, side, qntype, normal_opt)
 
 if nargin<5, lptype = 'd'; end     % 's' SLP or 'd' DLP test
 if nargin<6, side = 'i'; end     % 'i'=interior or 'e'=exterior
 if nargin<7, qntype = 'C'; end  % 'C'=chebyshev or 'G'=gauss
+if nargin<8, normal_opt = 0; end
 qtype = 'p'; s.p = 16;   % 'g'=global, 'p'=panels. s.p= panel order
 
 %% set up panel-wise quadrature
 
 if nargin<4, N = 300; end
-[s, N, np] = quadr(s,N,qtype,qntype); % set up bdry nodes (note outwards normal)
-
-sf = s; be = 2.0;        % factor by which to incr panel nodes for close eval
-sf.p = be*s.p; sf = quadr(sf,be*N,qtype,qntype); % the fine nodes for close eval
+% [s, N, np] = quadr(s,N,qtype,qntype); % set up bdry nodes (note outwards normal)
+s_test = s;
+[s, N, np] = quadr_pan(s, N, qtype, qntype) ;
+np = numel(s.x)/s.p;
+if normal_opt == 1
+    s.nx = -s.nx; s.cur = -s.cur;
+end
+% sf = s; be = 2.0;        % factor by which to incr panel nodes for close eval
+% sf.p = be*s.p; sf = quadr_pan(sf,be*N,qtype,qntype); % the fine nodes for close eval
 
 
 %% Do native evaluation
@@ -21,10 +27,18 @@ if isempty(tau)
     tau = [sin(s.t);cos(s.t)]; % default tau for debug
 end
 
-if lptype=='s', Ag = SLPmatrix(t,s);
-else Ag = DLPmatrix(t,s); end
+if lptype=='s'
+    Ag = SLPmatrix(t,s);
+else
+    Ag = DLPmatrix(t,s); 
+end
+
+% max(abs(test-test_mat*tau_test(1:64)))
+% max(max(abs(Ag-test_mat)))
+% max(abs(tau-tau_test(1:64)))
 
 u_temp = Ag * tau; % native u eval grid (could be via FMM)
+u_return = u_temp;
 u = u_temp(1:end/2) + 1i*u_temp(end/2+1:end);
 
 
@@ -36,9 +50,9 @@ panlen = zeros(np); % lengths of panel (keep for later)
 for k=1:np     % outer loop over panels
     j = (k-1)*s.p+(1:s.p);          % indices of nodes for kth panel
     panlen(k) = sum(s.ws(j));       % lengths of panel (keep for later)
-    ik = (abs(t.x - (s.xlo(k)+s.xhi(k))/2) < 0.7*panlen(k) ...
-        | abs(t.x - s.x(j(ceil(s.p/2)))) < 0.9*panlen(k)) ...
-        & abs(t.x - s.x(j(ceil(s.p/2))))<.5;
+    ik = (abs(t.x - (s.xlo(k)+s.xhi(k))/2) < 0.8*panlen(k) ...
+        | abs(t.x - s.x(j(ceil(s.p/2)))) < panlen(k));
+%         & abs(t.x - s.x(j(ceil(s.p/2))))<.5;
     
     % approx criterion for near-field of panel
     p.x = t.x(ik(:)); nst = nst + numel(p.x);  % col vec of targs near kth panel
@@ -59,17 +73,19 @@ for k=1:np     % outer loop over panels
 %        jf = (k-1)*sf.p+(1:sf.p);       % indices of this fine panel
 %        rf = []; rf.x = sf.x(jf); rf.nx = sf.nx(jf); rf.wxp = sf.wxp(jf); % fine panel
 %        p.x = p.x(1);  % for debug dimension 1 case
-        % add Helsing value (evaluated at fine nodes)
-        %I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype,
-        %side);   % density function as input, return correction value
+        % add Helsing value (evalu`ated at fine nodes)
+%        I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype, side);   % density function as input, return correction value
         
         Acorr = stokespanelcorm( p.x, r.x, s.xlo(k), s.xhi(k), lptype, side, qntype);   % no density function, return correction matrix
         I1 = Acorr*ta;
-
+        
         u(ik) = u(ik) + I1;     
         
     end
+
 end
+% uu = u_return(1:end/2) + 1i*u_return(end/2+1:end);
+% abs(uu-u)
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% end main %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
