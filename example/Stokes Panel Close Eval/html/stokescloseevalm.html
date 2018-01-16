@@ -1,0 +1,482 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>stokescloseevalm</title><meta name="generator" content="MATLAB 9.3"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2018-01-03"><meta name="DC.source" content="stokescloseevalm.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#3">set up panel-wise quadrature</a></li><li><a href="#4">Do native evaluation</a></li><li><a href="#5">For each panel, replace close-native-eval by close-special-eval</a></li></ul></div><pre class="codeinput"><span class="keyword">function</span> u = stokescloseevalm(t, s, tau, N, lptype, side, qntype, normal_opt)
+</pre><pre class="codeinput"><span class="keyword">if</span> nargin&lt;5, lptype = <span class="string">'d'</span>; <span class="keyword">end</span>     <span class="comment">% 's' SLP or 'd' DLP test</span>
+<span class="keyword">if</span> nargin&lt;6, side = <span class="string">'i'</span>; <span class="keyword">end</span>     <span class="comment">% 'i'=interior or 'e'=exterior</span>
+<span class="keyword">if</span> nargin&lt;7, qntype = <span class="string">'C'</span>; <span class="keyword">end</span>  <span class="comment">% 'C'=chebyshev or 'G'=gauss</span>
+<span class="keyword">if</span> nargin&lt;8, normal_opt = 0; <span class="keyword">end</span>
+qtype = <span class="string">'p'</span>; s.p = 16;   <span class="comment">% 'g'=global, 'p'=panels. s.p= panel order</span>
+</pre><h2 id="3">set up panel-wise quadrature</h2><pre class="codeinput"><span class="keyword">if</span> nargin&lt;4, N = 300; <span class="keyword">end</span>
+<span class="comment">% [s, N, np] = quadr(s,N,qtype,qntype); % set up bdry nodes (note outwards normal)</span>
+s_test = s;
+[s, N, np] = quadr_pan(s, N, qtype, qntype) ;
+np = numel(s.x)/s.p;
+<span class="keyword">if</span> normal_opt == 1
+    s.nx = -s.nx; s.cur = -s.cur;
+<span class="keyword">end</span>
+<span class="comment">% sf = s; be = 2.0;        % factor by which to incr panel nodes for close eval</span>
+<span class="comment">% sf.p = be*s.p; sf = quadr_pan(sf,be*N,qtype,qntype); % the fine nodes for close eval</span>
+</pre><pre class="codeoutput error">Reference to non-existent field 'Z'.
+
+Error in quadr_pan (line 24)
+    s.tlo = (0:np-1)'/np*2*pi; s.xlo = s.Z(s.tlo); % panel start params, locs
+
+Error in stokescloseevalm (line 14)
+[s, N, np] = quadr_pan(s, N, qtype, qntype) ;
+</pre><h2 id="4">Do native evaluation</h2><pre class="codeinput"><span class="keyword">if</span> isempty(tau)
+    disp(<span class="string">'tau not defined!'</span>)
+    <span class="comment">% tau = [sin(2*pi - s.t);cos(2*pi - s.t)];</span>
+    tau = [sin(s.t);cos(s.t)]; <span class="comment">% default tau for debug</span>
+<span class="keyword">end</span>
+
+<span class="keyword">if</span> lptype==<span class="string">'s'</span>
+    Ag = SLPmatrix(t,s);
+<span class="keyword">else</span>
+    Ag = DLPmatrix(t,s);
+<span class="keyword">end</span>
+
+<span class="comment">% max(abs(test-test_mat*tau_test(1:64)))</span>
+<span class="comment">% max(max(abs(Ag-test_mat)))</span>
+<span class="comment">% max(abs(tau-tau_test(1:64)))</span>
+
+u_temp = Ag * tau; <span class="comment">% native u eval grid (could be via FMM)</span>
+u_return = u_temp;
+u = u_temp(1:end/2) + 1i*u_temp(end/2+1:end);
+</pre><h2 id="5">For each panel, replace close-native-eval by close-special-eval</h2><pre class="codeinput"><span class="keyword">if</span> qtype == <span class="string">'p'</span>
+tic, nst = 0; <span class="comment">% eval on grid w/ close-eval scheme corrections</span>
+
+panlen = zeros(np); <span class="comment">% lengths of panel (keep for later)</span>
+<span class="keyword">for</span> k=1:np     <span class="comment">% outer loop over panels</span>
+    j = (k-1)*s.p+(1:s.p);          <span class="comment">% indices of nodes for kth panel</span>
+    panlen(k) = sum(s.ws(j));       <span class="comment">% lengths of panel (keep for later)</span>
+    ik = (abs(t.x - (s.xlo(k)+s.xhi(k))/2) &lt; 0.8*panlen(k) <span class="keyword">...</span>
+        | abs(t.x - s.x(j(ceil(s.p/2)))) &lt; panlen(k));
+<span class="comment">%         &amp; abs(t.x - s.x(j(ceil(s.p/2))))&lt;.5;</span>
+
+    <span class="comment">% approx criterion for near-field of panel</span>
+    p.x = t.x(ik(:)); nst = nst + numel(p.x);  <span class="comment">% col vec of targs near kth panel</span>
+    r.x = s.x(j); r.nx = s.nx(j); r.sp = s.sp(j); r.ws = s.ws(j); r.wxp = s.wxp(j);<span class="comment">% r = this panel</span>
+
+    <span class="keyword">if</span> numel(p.x)*numel(r.x)~=0
+        <span class="comment">% cancel native evaluation from panel k</span>
+        ta = tau([j,j+N]);                    <span class="comment">% panel src nodes, density</span>
+
+        <span class="keyword">if</span> lptype==<span class="string">'s'</span>
+            A =  SLPmatrix(p,r);
+        <span class="keyword">else</span>
+            A =  DLPmatrix(p,r);
+        <span class="keyword">end</span>
+        u_temp = A*ta;
+        u(ik) = u(ik) - (u_temp(1:end/2)+1i*u_temp(end/2+1:end));
+
+<span class="comment">%        jf = (k-1)*sf.p+(1:sf.p);       % indices of this fine panel</span>
+<span class="comment">%        rf = []; rf.x = sf.x(jf); rf.nx = sf.nx(jf); rf.wxp = sf.wxp(jf); % fine panel</span>
+<span class="comment">%        p.x = p.x(1);  % for debug dimension 1 case</span>
+        <span class="comment">% add Helsing value (evalu`ated at fine nodes)</span>
+<span class="comment">%        I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype, side);   % density function as input, return correction value</span>
+
+        Acorr = stokespanelcorm( p.x, r.x, s.xlo(k), s.xhi(k), lptype, side, qntype);   <span class="comment">% no density function, return correction matrix</span>
+        I1 = Acorr*ta;
+
+        u(ik) = u(ik) + I1;
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+<span class="comment">% uu = u_return(1:end/2) + 1i*u_return(end/2+1:end);</span>
+<span class="comment">% abs(uu-u)</span>
+<span class="keyword">end</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% end main %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+</pre><pre class="codeinput"><span class="keyword">function</span> [s, N, np] = quadr(s, N, qtype, qntype)  <span class="comment">% set up quadrature on a closed segment</span>
+<span class="comment">% QUADR - set up quadrature (either global or panel-based) on a segment struct</span>
+<span class="comment">%</span>
+<span class="comment">% [s N] = quadr(s, N, qtype) adds quadrature input to segment struct s.</span>
+<span class="comment">% Inputs:</span>
+<span class="comment">%  s - segment struct containing parametrization</span>
+<span class="comment">%  N - requested number of nodes</span>
+<span class="comment">%  qtype - quadrature type: 'g' global periodic trapezoid rule</span>
+<span class="comment">%                           'p' panel-wise Gauss-Legendre w/ s.p nodes per pan</span>
+<span class="comment">% Outputs: s - amended segment struct</span>
+<span class="comment">%          N - actual number of nodes (is within s.p of requested N)</span>
+<span class="comment">%          np - number of panels</span>
+<span class="comment">% Notes: 1) Note sign change in normal sense vs periodicdirpipe.m</span>
+<span class="comment">% 2) Non-adaptive for now.  Barnett 6/10/13</span>
+<span class="keyword">if</span> qtype==<span class="string">'g'</span>
+    t = (1:N)'/N*2*pi;
+    s.tlo = 0; s.thi = 2*pi; s.p = N; s.w = 2*pi/N*ones(N,1); np=1; <span class="comment">% 1 big panel</span>
+    s.xlo = s.Z(s.tlo); s.xhi = s.Z(s.thi);
+    <span class="keyword">if</span> qntype==<span class="string">'G'</span>, [~, ~, D] = gauss(N); <span class="keyword">else</span> [~, ~, D] = cheby(N); <span class="keyword">end</span>
+
+<span class="keyword">elseif</span> qtype==<span class="string">'p'</span>
+    <span class="keyword">if</span> ~isfield(s,<span class="string">'p'</span>), s.p=16; <span class="keyword">end</span>, p = s.p; <span class="comment">% default panel order</span>
+    np = ceil(N/p); N = p*np;      <span class="comment">% np = # panels</span>
+    s.tlo = (0:np-1)'/np*2*pi; s.xlo = s.Z(s.tlo); <span class="comment">% panel start params, locs</span>
+    s.thi = (1:np)'/np*2*pi; s.xhi = s.Z(s.thi);  <span class="comment">% panel end params, locs</span>
+    pt = 2*pi/np;                  <span class="comment">% panel size in parameter</span>
+    t = zeros(N,1); s.w = t;
+    <span class="keyword">if</span> qntype==<span class="string">'G'</span>, [x, w, D] = gauss(p); <span class="keyword">else</span> [x, w, D] = cheby(p); <span class="keyword">end</span>
+    D = D*2/pt;
+    <span class="keyword">for</span> i=1:np
+        ii = (i-1)*p+(1:p); <span class="comment">% indices of this panel</span>
+        t(ii) = s.tlo(i) + (1+x)/2*pt; s.w(ii) = w*pt/2; <span class="comment">% nodes weights this panel</span>
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+s.x = s.Z(t);
+s.xp = zeros(length(s.x),1);
+s.xpp = zeros(length(s.x),1);
+
+<span class="keyword">if</span> isfield(s,<span class="string">'Zp'</span>), s.xp = s.Zp(t);
+<span class="keyword">else</span>
+    <span class="keyword">if</span> qtype == <span class="string">'p'</span>
+        <span class="keyword">for</span> i=1:np
+            ii = (i-1)*p+(1:p); <span class="comment">% indices of this panel</span>
+            s.xp(ii) = D*s.x(ii);
+        <span class="keyword">end</span>
+    <span class="keyword">else</span>
+        s.xp = D*s.x;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+<span class="keyword">if</span> isfield(s,<span class="string">'Zpp'</span>), s.xpp = s.Zpp(t);
+<span class="keyword">else</span>
+    <span class="keyword">if</span> qtype == <span class="string">'p'</span>
+    <span class="keyword">for</span> i=1:np
+        ii = (i-1)*p+(1:p); <span class="comment">% indices of this panel</span>
+        s.xpp(ii) = D*s.xp(ii);
+    <span class="keyword">end</span>
+    <span class="keyword">else</span>
+        s.xpp = D*s.xp;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+s.sp = abs(s.xp); s.tang = s.xp./s.sp; s.nx = -1i*s.tang;
+s.cur = -real(conj(s.xpp).*s.nx)./s.sp.^2;
+s.ws = s.w.*s.sp; <span class="comment">% speed weights</span>
+s.t = t; s.wxp = s.w.*s.xp; <span class="comment">% complex speed weights (Helsing's wzp)</span>
+
+<span class="keyword">function</span> A = DLPmatrix(t,s) <span class="comment">% stokes double-layer kernel matrix &amp; targ n-deriv</span>
+<span class="comment">% t = target seg (x,nx cols), s = src seg, a = optional translation of src seg</span>
+<span class="comment">% No jump included on self-interaction.</span>
+N = numel(s.x); M = numel(t.x);
+d = repmat(t.x, [1 N]) - repmat(s.x.', [M 1]);    <span class="comment">% C-# displacements mat</span>
+ny = repmat(s.nx.', [M 1]);      <span class="comment">% identical rows given by src normals</span>
+r2 = d.*conj(d);    <span class="comment">% dist^2 matrix R^{MxN}</span>
+
+dot_part = real(ny./d)./r2/pi;
+dot_part = repmat(dot_part,2,2);
+
+d1 = real(d);
+d2 = imag(d);
+cross_part = [d1.^2, d1.*d2; d1.*d2, d2.^2];
+A = dot_part.*cross_part;
+
+<span class="keyword">if</span> numel(s.x)==numel(t.x) &amp;&amp; max(abs(s.x-t.x))&lt;1e-14
+    t1 = real(s.tang); t2 = imag(s.tang);
+    A(diagind(A)) = [t1.^2; t2.^2].*repmat(-s.cur,2,1)/2/pi;
+    A = A(:,[1+end/2:end,1:end/2]);
+    A(diagind(A)) = [t1.*t2; t2.*t1].*repmat(-s.cur,2,1)/2/pi;
+    A = A(:,[1+end/2:end,1:end/2]);
+<span class="keyword">end</span>           <span class="comment">% self? diagonal term for Stokes</span>
+
+A = A.*repmat(s.ws(:)', [2*M 2]);
+
+
+<span class="keyword">function</span> A = SLPmatrix(t,s) <span class="comment">% double-layer kernel matrix &amp; targ n-deriv</span>
+<span class="comment">% t = target seg (x,nx cols), s = src seg, a = optional translation of src seg</span>
+<span class="comment">% No jump included on self-interaction.</span>
+N = numel(s.x); M = numel(t.x);
+d = repmat(t.x, [1 N]) - repmat(s.x.', [M 1]);    <span class="comment">% C-# displacements mat</span>
+r = abs(d);    <span class="comment">% dist matrix R^{MxN}</span>
+
+log_part = kron(eye(2),-log(r));
+
+d1 = real(d)./r;
+d2 = imag(d)./r;
+
+cross_part = [d1.^2, d1.*d2; d1.*d2, d2.^2];
+
+A = (log_part + cross_part).*repmat(s.ws(:)', [2*M 2])/4/pi;
+
+
+
+
+<span class="keyword">function</span> i = diagind(A) <span class="comment">% return indices of diagonal of square matrix</span>
+N = size(A,1); i = sub2ind(size(A), 1:N, 1:N);
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2017b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+function u = stokescloseevalm(t, s, tau, N, lptype, side, qntype, normal_opt)
+
+if nargin<5, lptype = 'd'; end     % 's' SLP or 'd' DLP test
+if nargin<6, side = 'i'; end     % 'i'=interior or 'e'=exterior
+if nargin<7, qntype = 'C'; end  % 'C'=chebyshev or 'G'=gauss
+if nargin<8, normal_opt = 0; end
+qtype = 'p'; s.p = 16;   % 'g'=global, 'p'=panels. s.p= panel order
+
+%% set up panel-wise quadrature
+
+if nargin<4, N = 300; end
+% [s, N, np] = quadr(s,N,qtype,qntype); % set up bdry nodes (note outwards normal)
+s_test = s;
+[s, N, np] = quadr_pan(s, N, qtype, qntype) ;
+np = numel(s.x)/s.p;
+if normal_opt == 1
+    s.nx = -s.nx; s.cur = -s.cur;
+end
+% sf = s; be = 2.0;        % factor by which to incr panel nodes for close eval
+% sf.p = be*s.p; sf = quadr_pan(sf,be*N,qtype,qntype); % the fine nodes for close eval
+
+
+%% Do native evaluation
+if isempty(tau)
+    disp('tau not defined!')
+    % tau = [sin(2*pi - s.t);cos(2*pi - s.t)];
+    tau = [sin(s.t);cos(s.t)]; % default tau for debug
+end
+
+if lptype=='s'
+    Ag = SLPmatrix(t,s);
+else
+    Ag = DLPmatrix(t,s); 
+end
+
+% max(abs(test-test_mat*tau_test(1:64)))
+% max(max(abs(Ag-test_mat)))
+% max(abs(tau-tau_test(1:64)))
+
+u_temp = Ag * tau; % native u eval grid (could be via FMM)
+u_return = u_temp;
+u = u_temp(1:end/2) + 1i*u_temp(end/2+1:end);
+
+
+%% For each panel, replace close-native-eval by close-special-eval
+if qtype == 'p'
+tic, nst = 0; % eval on grid w/ close-eval scheme corrections
+
+panlen = zeros(np); % lengths of panel (keep for later)
+for k=1:np     % outer loop over panels
+    j = (k-1)*s.p+(1:s.p);          % indices of nodes for kth panel
+    panlen(k) = sum(s.ws(j));       % lengths of panel (keep for later)
+    ik = (abs(t.x - (s.xlo(k)+s.xhi(k))/2) < 0.8*panlen(k) ...
+        | abs(t.x - s.x(j(ceil(s.p/2)))) < panlen(k));
+%         & abs(t.x - s.x(j(ceil(s.p/2))))<.5;
+    
+    % approx criterion for near-field of panel
+    p.x = t.x(ik(:)); nst = nst + numel(p.x);  % col vec of targs near kth panel
+    r.x = s.x(j); r.nx = s.nx(j); r.sp = s.sp(j); r.ws = s.ws(j); r.wxp = s.wxp(j);% r = this panel
+    
+    if numel(p.x)*numel(r.x)~=0
+        % cancel native evaluation from panel k
+        ta = tau([j,j+N]);                    % panel src nodes, density  
+
+        if lptype=='s' 
+            A =  SLPmatrix(p,r); 
+        else
+            A =  DLPmatrix(p,r);
+        end
+        u_temp = A*ta;
+        u(ik) = u(ik) - (u_temp(1:end/2)+1i*u_temp(end/2+1:end));
+        
+%        jf = (k-1)*sf.p+(1:sf.p);       % indices of this fine panel
+%        rf = []; rf.x = sf.x(jf); rf.nx = sf.nx(jf); rf.wxp = sf.wxp(jf); % fine panel
+%        p.x = p.x(1);  % for debug dimension 1 case
+        % add Helsing value (evalu`ated at fine nodes)
+%        I = stokespanelcor( p.x, r.x, s.xlo(k), s.xhi(k), ta, lptype, side);   % density function as input, return correction value
+        
+        Acorr = stokespanelcorm( p.x, r.x, s.xlo(k), s.xhi(k), lptype, side, qntype);   % no density function, return correction matrix
+        I1 = Acorr*ta;
+        
+        u(ik) = u(ik) + I1;     
+        
+    end
+
+end
+% uu = u_return(1:end/2) + 1i*u_return(end/2+1:end);
+% abs(uu-u)
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% end main %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+function [s, N, np] = quadr(s, N, qtype, qntype)  % set up quadrature on a closed segment
+% QUADR - set up quadrature (either global or panel-based) on a segment struct
+%
+% [s N] = quadr(s, N, qtype) adds quadrature input to segment struct s.
+% Inputs:
+%  s - segment struct containing parametrization
+%  N - requested number of nodes
+%  qtype - quadrature type: 'g' global periodic trapezoid rule
+%                           'p' panel-wise Gauss-Legendre w/ s.p nodes per pan
+% Outputs: s - amended segment struct
+%          N - actual number of nodes (is within s.p of requested N)
+%          np - number of panels
+% Notes: 1) Note sign change in normal sense vs periodicdirpipe.m
+% 2) Non-adaptive for now.  Barnett 6/10/13
+if qtype=='g'
+    t = (1:N)'/N*2*pi;
+    s.tlo = 0; s.thi = 2*pi; s.p = N; s.w = 2*pi/N*ones(N,1); np=1; % 1 big panel
+    s.xlo = s.Z(s.tlo); s.xhi = s.Z(s.thi);
+    if qntype=='G', [~, ~, D] = gauss(N); else [~, ~, D] = cheby(N); end
+    
+elseif qtype=='p'
+    if ~isfield(s,'p'), s.p=16; end, p = s.p; % default panel order
+    np = ceil(N/p); N = p*np;      % np = # panels
+    s.tlo = (0:np-1)'/np*2*pi; s.xlo = s.Z(s.tlo); % panel start params, locs
+    s.thi = (1:np)'/np*2*pi; s.xhi = s.Z(s.thi);  % panel end params, locs
+    pt = 2*pi/np;                  % panel size in parameter
+    t = zeros(N,1); s.w = t;
+    if qntype=='G', [x, w, D] = gauss(p); else [x, w, D] = cheby(p); end   
+    D = D*2/pt;
+    for i=1:np
+        ii = (i-1)*p+(1:p); % indices of this panel
+        t(ii) = s.tlo(i) + (1+x)/2*pt; s.w(ii) = w*pt/2; % nodes weights this panel
+    end
+end
+s.x = s.Z(t);
+s.xp = zeros(length(s.x),1);
+s.xpp = zeros(length(s.x),1);
+
+if isfield(s,'Zp'), s.xp = s.Zp(t);
+else
+    if qtype == 'p'
+        for i=1:np
+            ii = (i-1)*p+(1:p); % indices of this panel
+            s.xp(ii) = D*s.x(ii);
+        end
+    else
+        s.xp = D*s.x;
+    end
+end
+if isfield(s,'Zpp'), s.xpp = s.Zpp(t);
+else
+    if qtype == 'p'
+    for i=1:np
+        ii = (i-1)*p+(1:p); % indices of this panel
+        s.xpp(ii) = D*s.xp(ii);
+    end
+    else
+        s.xpp = D*s.xp;
+    end
+end
+
+s.sp = abs(s.xp); s.tang = s.xp./s.sp; s.nx = -1i*s.tang;
+s.cur = -real(conj(s.xpp).*s.nx)./s.sp.^2;
+s.ws = s.w.*s.sp; % speed weights
+s.t = t; s.wxp = s.w.*s.xp; % complex speed weights (Helsing's wzp)
+
+function A = DLPmatrix(t,s) % stokes double-layer kernel matrix & targ n-deriv
+% t = target seg (x,nx cols), s = src seg, a = optional translation of src seg
+% No jump included on self-interaction.
+N = numel(s.x); M = numel(t.x);
+d = repmat(t.x, [1 N]) - repmat(s.x.', [M 1]);    % C-# displacements mat
+ny = repmat(s.nx.', [M 1]);      % identical rows given by src normals
+r2 = d.*conj(d);    % dist^2 matrix R^{MxN}
+
+dot_part = real(ny./d)./r2/pi;
+dot_part = repmat(dot_part,2,2);
+
+d1 = real(d);
+d2 = imag(d);
+cross_part = [d1.^2, d1.*d2; d1.*d2, d2.^2];
+A = dot_part.*cross_part;
+
+if numel(s.x)==numel(t.x) && max(abs(s.x-t.x))<1e-14
+    t1 = real(s.tang); t2 = imag(s.tang);
+    A(diagind(A)) = [t1.^2; t2.^2].*repmat(-s.cur,2,1)/2/pi;
+    A = A(:,[1+end/2:end,1:end/2]);
+    A(diagind(A)) = [t1.*t2; t2.*t1].*repmat(-s.cur,2,1)/2/pi;
+    A = A(:,[1+end/2:end,1:end/2]);
+end           % self? diagonal term for Stokes
+
+A = A.*repmat(s.ws(:)', [2*M 2]);
+
+
+function A = SLPmatrix(t,s) % double-layer kernel matrix & targ n-deriv
+% t = target seg (x,nx cols), s = src seg, a = optional translation of src seg
+% No jump included on self-interaction.
+N = numel(s.x); M = numel(t.x);
+d = repmat(t.x, [1 N]) - repmat(s.x.', [M 1]);    % C-# displacements mat
+r = abs(d);    % dist matrix R^{MxN}
+
+log_part = kron(eye(2),-log(r));
+
+d1 = real(d)./r;
+d2 = imag(d)./r;
+
+cross_part = [d1.^2, d1.*d2; d1.*d2, d2.^2];
+
+A = (log_part + cross_part).*repmat(s.ws(:)', [2*M 2])/4/pi;
+
+
+
+
+function i = diagind(A) % return indices of diagonal of square matrix
+N = size(A,1); i = sub2ind(size(A), 1:N, 1:N);
+
+
+
+##### SOURCE END #####
+--></body></html>
