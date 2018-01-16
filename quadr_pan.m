@@ -63,3 +63,17 @@ s.sp = abs(s.xp); s.tang = s.xp./s.sp; s.nx = -1i*s.tang;
 s.cur = -real(conj(s.xpp).*s.nx)./s.sp.^2;
 s.ws = s.w.*s.sp; % speed weights
 s.t = t; s.wxp = s.w.*s.xp; % complex speed weights (Helsing's wzp)
+
+function testquadr_pan
+% not very extensive! Hai 01/06/18
+close all;
+qtype = 'p';
+qntype = 'C';
+Z = @(s) (1+0.3*cos(5*s)).*exp(1i*s);                   % starfish param
+s.Z = Z;
+s = quadr_pan(s,200,qtype,qntype);
+figure; plot(s.x,'k.'); hold on; plot([s.x, s.x+0.2*s.nx].', 'b-'); axis equal
+% Now check that normals from spectral differentiation are accurate:
+Zp = @(s) -1.5*sin(5*s).*exp(1i*s) + 1i*Z(s);        % Z' formula
+s.Zp = Zp;
+t = quadr_pan(s,200,qtype,qntype); norm(t.nx-s.nx)   % should be small
