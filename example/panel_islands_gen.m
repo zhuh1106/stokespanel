@@ -6,8 +6,12 @@ warning off % turns off warning from gmres
 %% set up source
 
 % generate microfludic chip geometry
-x1 = [-2+shift,2]; x2 = [-2+shift,-2]; x3 = [-1+shift,-2]; x4 = [-1+shift,2];
+x1 = [-2,2]; x2 = [-2,-2]; x3 = [-1,-2]; x4 = [-1,2];
 x = [x1;x2;x3;x4];
+shiftm = zeros(size(x));
+shiftm(:,1) = shift(1);
+shiftm(:,2) = shift(2);
+x = x + shiftm;
 np = sum(nps); theta = 2*pi/np;
 [polySize, ~] = size(x);
 t = zeros(polySize,4);

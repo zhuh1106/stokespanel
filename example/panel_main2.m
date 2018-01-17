@@ -5,8 +5,8 @@ clear all
 
 xLim = 6;
 r = 0.1;
-nc = 1;
-k = 1;
+nc = 4;
+k = 4;
 nps = k*[4;5;5;8;5;5;4;5;5;8;5;5];   % number of panels along each side
 %% get geometry
 sc = panel_confinedgeo_gen(xLim,nps,r,nc);
@@ -17,25 +17,14 @@ N = numel(sc.x);
 f = [(1-imag(sc.x).^2).*(abs(imag(sc.x))<1);zeros(N,1)];
 
 %% set up islands
-nps = k*[8;3;8;3];   % number of panels along each side
-si = {};
-shift = -0.6; r = 0.1;
-si{1} = panel_islands_gen(nps,r,shift,nc);
-si{1}.n = 16*sum(nps);
-
-shift = 1; r = 0.1;
-si{2} = panel_islands_gen(nps,r,shift,nc);
-si{2}.n = 16*sum(nps);
-
-shift = 4; r = 0.1;
-si{3} = panel_islands_gen(nps,r,shift,nc);
-si{3}.n = 16*sum(nps);
+option = 2;
+si = islands(k,nc,option);
 
 numOfI = 3;
 
 
 %% set up target point
-nx = 40; gx = ((1:nx)/nx*2-1)*xLim; ny = 40; gy = ((1:ny)/ny*2-1)*3;
+nx = 80; gx = ((1:nx)/nx*2-1)*xLim; ny = 40; gy = ((1:ny)/ny*2-1)*3;
 [xx, yy] = meshgrid(gx,gy); zz = (xx+1i*yy);
 t = [];
 [INc, ONc] = inpolygon(real(zz),imag(zz),real(sc.x),imag(sc.x));
@@ -125,3 +114,43 @@ for i = 1:numOfI
     plot(real(si{i}.x),imag(si{i}.x),'.r');
 end
 
+function si = islands(k,nc,option)
+
+switch option
+    case 1
+        nps = k*[8;3;8;3];   % number of panels along each side
+        si = {};
+        shift = [-0.75,-0.75]; r = 0.1;
+        si{1} = panel_islands_gen(nps,r,shift,nc);
+        si{1}.n = 16*sum(nps);
+
+        shift = [0.75,-0.25]; r = 0.1;
+        si{2} = panel_islands_gen(nps,r,shift,nc);
+        si{2}.n = 16*sum(nps);
+
+        shift = [2.25,0.25]; r = 0.1;
+        si{3} = panel_islands_gen(nps,r,shift,nc);
+        si{3}.n = 16*sum(nps);
+
+        shift = [4,0.75]; r = 0.1;
+        si{4} = panel_islands_gen(nps,r,shift,nc);
+        si{4}.n = 16*sum(nps);
+    case 2
+        nps = k*[8;3;8;3];   % number of panels along each side
+        si = {};
+        shift = [-0.75,-0.75]; r = 0.1;
+        si{1} = panel_islands_gen(nps,r,shift,nc);
+        si{1}.n = 16*sum(nps);
+
+        shift = [0.75,-0.25]; r = 0.1;
+        si{2} = panel_islands_gen(nps,r,shift,nc);
+        si{2}.n = 16*sum(nps);
+        
+        nps = k*[4;5;4;4;3;4;3;4;3;4;4;4];   % number of panels along each side
+        r = 0.08;
+        shift = [0.2,0.1];
+        si{3} = panel_tank_gen(nps,r,shift,nc);    % number of panels at corner   
+        si{3}.n = 16*sum(nps);
+        
+end
+        
