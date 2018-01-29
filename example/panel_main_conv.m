@@ -1,16 +1,15 @@
-function panel_main2()
+function [u,sc,si] = panel_main_conv(nc, k, npsc, npsi)
 
-close all
-clear all
+% close all
 
 xLim = 6;
 r = 0.1;
-nc = 2;
-k = 2;
-nps = k*[4;5;5;8;5;5;4;5;5;8;5;5];   % number of panels along each side
+
 %% get geometry
+nps = npsc*k;
 sc = panel_confinedgeo_gen(xLim,nps,r,nc);
 sc.n = numel(sc.x);
+sc.np = sum(nps);
 N = numel(sc.x);
 
 %% set up rhs (boundary condition) and solve for density
@@ -18,7 +17,7 @@ f = [(1-imag(sc.x).^2).*(abs(imag(sc.x))<1);zeros(N,1)];
 
 %% set up islands
 option = 1;
-si = islands(k,nc,option);
+si = islands(npsi,k,nc,option);
 
 numOfI = 4;
 
@@ -114,43 +113,50 @@ for i = 1:numOfI
     plot(real(si{i}.x),imag(si{i}.x),'.r');
 end
 
-function si = islands(k,nc,option)
+function si = islands(npsi,k,nc,option)
 
 switch option
     case 1
-        nps = k*[8;3;8;3];   % number of panels along each side
+        nps = k*npsi;   % number of panels along each side
         si = {};
         shift = [-0.75,-0.75]; r = 0.1;
         si{1} = panel_islands_gen(nps,r,shift,nc);
         si{1}.n = 16*sum(nps);
+        si{1}.np = sum(nps);
 
         shift = [0.75,-0.25]; r = 0.1;
         si{2} = panel_islands_gen(nps,r,shift,nc);
         si{2}.n = 16*sum(nps);
+        si{2}.np = sum(nps);
 
         shift = [2.25,0.25]; r = 0.1;
         si{3} = panel_islands_gen(nps,r,shift,nc);
         si{3}.n = 16*sum(nps);
+        si{3}.np = sum(nps);
 
         shift = [4,0.75]; r = 0.1;
         si{4} = panel_islands_gen(nps,r,shift,nc);
         si{4}.n = 16*sum(nps);
+        si{4}.np = sum(nps);
     case 2
-        nps = k*[8;3;8;3];   % number of panels along each side
+        nps = k*npsi;   % number of panels along each side
         si = {};
         shift = [-0.75,-0.75]; r = 0.1;
         si{1} = panel_islands_gen(nps,r,shift,nc);
         si{1}.n = 16*sum(nps);
+        si{1}.np = sum(nps);
 
         shift = [0.75,-0.25]; r = 0.1;
         si{2} = panel_islands_gen(nps,r,shift,nc);
         si{2}.n = 16*sum(nps);
+        si{2}.np = sum(nps);
         
         nps = k*[4;5;4;4;3;4;3;4;3;4;4;4];   % number of panels along each side
         r = 0.08;
         shift = [0.2,0.1];
         si{3} = panel_tank_gen(nps,r,shift,nc);    % number of panels at corner   
         si{3}.n = 16*sum(nps);
+        si{3}.np = sum(nps);
         
 end
         

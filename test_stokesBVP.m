@@ -15,7 +15,7 @@ function test_stokesBVP
 v = 1;
 side = 'i'; % test interior or exterior
 lptype = 'd'; % test SLP or DLP
-qntype = 'C'; % quadrature nodes, test gauss or chebyshev  
+qntype = 'G'; % quadrature nodes, test gauss or chebyshev  
 N = 600;
 
 % set up source and target
@@ -72,7 +72,7 @@ end
 % 2 convergence test
 
 Nn = 10;
-for NN = 1:Nn
+for NN = 5:Nn
     N = 100*NN;
     % solve the BVP
     [s, N, np] = quadr_pan(s,N,'p',qntype); % set up bdry nodes (note outwards normal)
