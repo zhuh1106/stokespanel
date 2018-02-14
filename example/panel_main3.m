@@ -5,8 +5,8 @@ clear all
 
 xLim = 6;
 r = 0.1;
-nc = 1;
-k = 1;
+nc = 2;
+k = 2;
 nps = k*[4;5;5;8;5;5;4;5;4;5;4;5;5;8;5;5];   % number of panels along each side
 %% get geometry
 sc = panel_confinedgeo_gen2(xLim,nps,r,nc);
