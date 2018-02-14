@@ -16,7 +16,7 @@ end
 x1 = [-3,2]; x2 = [-2,1.5]; x3 = [-2,2.5];
 xc = 1/3*(x1 + x2 + x3);
 rmat = [cos(theta),-sin(theta);sin(theta),cos(theta)];
-x = scale*(rmat*(([x1;x2;x3] - xc)'))'+xc;
+x = scale*(rmat*(([x1;x2;x3] - [xc;xc;xc])'))'+[xc;xc;xc];
 shiftm = zeros(size(x));
 shiftm(:,1) = shift(1);
 shiftm(:,2) = shift(2);

@@ -184,12 +184,12 @@ switch option
         for j = 1:8
             for i = 1:8
                 shift = Shift(i,:);
-                shift(1) = shift(1) + 3/4*(j-1);
-                si{i+(j-1)*8} = panel_islands_gen2(nps,r,shift,nc,scale,theta);
+                shift(1) = shift(1) + 3/4*(j-1) + 0.025*(-1)^j;
+                si{i+(j-1)*8} = panel_islands_gen2(nps,r,shift,nc,scale,(-1)^j*theta);
                 si{i+(j-1)*8}.n = 16*sum(nps);
                 si{i+(j-1)*8}.np = sum(nps);
             end
-        end   
+        end  
         
 end
         
